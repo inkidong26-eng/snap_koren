@@ -1,6 +1,18 @@
-export function speakText(text: string, langCode: string = 'ko') {
+export function cancelSpeech() {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+export function speakText(
+  text: string,
+  langCode: string = 'ko',
+  onEnd?: () => void,
+  rate: number = 0.95
+) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     console.warn('Speech synthesis not supported in this browser.');
+    if (onEnd) onEnd();
     return;
   }
 
@@ -8,7 +20,7 @@ export function speakText(text: string, langCode: string = 'ko') {
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
-  
+
   // Normalize language tags
   const lower = langCode.toLowerCase();
   if (lower.startsWith('ko')) {
@@ -29,8 +41,17 @@ export function speakText(text: string, langCode: string = 'ko') {
     utterance.lang = langCode;
   }
 
-  utterance.rate = 0.95;
+  utterance.rate = rate;
   utterance.pitch = 1.0;
+
+  if (onEnd) {
+    utterance.onend = () => {
+      onEnd();
+    };
+    utterance.onerror = () => {
+      onEnd();
+    };
+  }
 
   window.speechSynthesis.speak(utterance);
 }

@@ -11,8 +11,9 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { TranslationData, TranslationTone } from '../types.ts';
+import { TranslationData, TranslationTone, ScrollReadingMode } from '../types.ts';
 import { speakText } from '../utils/speech.ts';
+import { TeleprompterView } from './TeleprompterView.tsx';
 
 interface TranslationResultViewProps {
   data: TranslationData;
@@ -33,6 +34,10 @@ export const TranslationResultView: React.FC<TranslationResultViewProps> = ({
 }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [expandedVocab, setExpandedVocab] = useState<boolean>(true);
+  // Default to teleprompter if multiple lines, else cards
+  const [readingMode, setReadingMode] = useState<ScrollReadingMode>(
+    data.items.length > 1 ? 'teleprompter' : 'cards'
+  );
 
   const copyToClipboard = async (text: string, key: string) => {
     try {
@@ -154,107 +159,136 @@ export const TranslationResultView: React.FC<TranslationResultViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Sentence-by-Sentence Detailed Mapping */}
+      {/* 3. Sentence-by-Sentence Detailed Mapping or Teleprompter */}
       {data.items && data.items.length > 0 && (
         <div className="flex flex-col gap-2.5">
-          <div className="flex items-center justify-between px-1">
-            <h4 className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
-              <span>문장별 정밀 해설 & 대역</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-normal">
-                {data.items.length}개 문장
-              </span>
-            </h4>
-            <span className="text-[11px] text-slate-400 hidden sm:inline">
-              카드를 클릭하면 사진의 해당 문장이 하이라이트됩니다
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-2.5">
-            {data.items.map((item) => {
-              const isSelected = selectedSentenceId === item.id;
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => onSelectSentence(item.id)}
-                  className={`p-3.5 sm:p-4 rounded-2xl border transition cursor-pointer relative group ${
-                    isSelected
-                      ? 'bg-slate-800/90 border-cyan-400/80 shadow-lg shadow-cyan-500/10'
-                      : 'bg-slate-900/60 hover:bg-slate-800/60 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      {/* Foreign Original */}
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="w-5 h-5 rounded-full bg-slate-800 text-cyan-400 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                          {item.id}
-                        </span>
-                        <p className="text-sm font-semibold text-slate-200 break-words">
-                          {item.originalSentence}
-                        </p>
-                      </div>
-
-                      {/* Pronunciation phonetics */}
-                      {item.pronunciation && (
-                        <div className="text-xs text-cyan-400/90 ml-7 mb-1.5 font-mono">
-                          [{item.pronunciation}]
-                        </div>
-                      )}
-
-                      {/* Korean Translation */}
-                      <div className="ml-7 text-sm font-medium text-emerald-300">
-                        → {item.koreanTranslation}
-                      </div>
-
-                      {/* Nuance or grammar note */}
-                      {item.nuance && (
-                        <div className="mt-2 ml-7 px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700/60 text-xs text-slate-300 flex items-start gap-1.5">
-                          <span className="text-amber-400 font-bold">💡 뉘앙스:</span>
-                          <span>{item.nuance}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action buttons per sentence */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {/* Speak Original */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          speakText(item.originalSentence, data.languageCode);
-                        }}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition"
-                        title="원어민 발음 듣기"
-                      >
-                        <Volume2 className="w-4 h-4" />
-                      </button>
-
-                      {/* Copy Sentence */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyToClipboard(
-                            `${item.originalSentence}\n${item.koreanTranslation}`,
-                            `item_${item.id}`
-                          );
-                        }}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
-                        title="문장 복사"
-                      >
-                        {copiedKey === `item_${item.id}` ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
+          {readingMode === 'teleprompter' || readingMode === 'ttsSync' ? (
+            <TeleprompterView
+              items={data.items}
+              langCode={data.languageCode}
+              readingMode={readingMode}
+              onChangeReadingMode={setReadingMode}
+              selectedSentenceId={selectedSentenceId}
+              onSelectSentence={onSelectSentence}
+            />
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-slate-200">
+                    전체 문장 카드 목록
+                  </h4>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-normal">
+                    {data.items.length}개 문장
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setReadingMode('teleprompter')}
+                    className="px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-semibold hover:bg-cyan-500/25 transition"
+                  >
+                    📜 자막 자동 롤링 (A)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReadingMode('ttsSync')}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/25 transition"
+                  >
+                    🎙️ 낭독 싱크 (C)
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                {data.items.map((item) => {
+                  const isSelected = selectedSentenceId === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => onSelectSentence(item.id)}
+                      className={`p-3.5 sm:p-4 rounded-2xl border transition cursor-pointer relative group ${
+                        isSelected
+                          ? 'bg-slate-800/90 border-cyan-400/80 shadow-lg shadow-cyan-500/10'
+                          : 'bg-slate-900/60 hover:bg-slate-800/60 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          {/* Foreign Original */}
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="w-5 h-5 rounded-full bg-slate-800 text-cyan-400 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                              {item.id}
+                            </span>
+                            <p className="text-sm font-semibold text-slate-200 break-words">
+                              {item.originalSentence}
+                            </p>
+                          </div>
+
+                          {/* Pronunciation phonetics */}
+                          {item.pronunciation && (
+                            <div className="text-xs text-cyan-400/90 ml-7 mb-1.5 font-mono">
+                              [{item.pronunciation}]
+                            </div>
+                          )}
+
+                          {/* Korean Translation */}
+                          <div className="ml-7 text-sm font-medium text-emerald-300">
+                            → {item.koreanTranslation}
+                          </div>
+
+                          {/* Nuance or grammar note */}
+                          {item.nuance && (
+                            <div className="mt-2 ml-7 px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700/60 text-xs text-slate-300 flex items-start gap-1.5">
+                              <span className="text-amber-400 font-bold">💡 뉘앙스:</span>
+                              <span>{item.nuance}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action buttons per sentence */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {/* Speak Original */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              speakText(item.originalSentence, data.languageCode);
+                            }}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition"
+                            title="원어민 발음 듣기"
+                          >
+                            <Volume2 className="w-4 h-4" />
+                          </button>
+
+                          {/* Copy Sentence */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(
+                                `${item.originalSentence}\n${item.koreanTranslation}`,
+                                `item_${item.id}`
+                              );
+                            }}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+                            title="문장 복사"
+                          >
+                            {copiedKey === `item_${item.id}` ? (
+                              <Check className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -45,3 +45,5 @@ export interface TranslationHistoryItem {
 export type TranslationTone = 'natural' | 'honorific' | 'casual' | 'literal';
 
 export type ViewMode = 'scanner' | 'history' | 'prd';
+
+export type ScrollReadingMode = 'teleprompter' | 'ttsSync' | 'cards';

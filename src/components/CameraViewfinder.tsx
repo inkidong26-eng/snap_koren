@@ -141,8 +141,19 @@ export const CameraViewfinder: React.FC<CameraViewfinderProps> = ({
     const video = videoRef.current;
     const canvas = canvasRef.current || document.createElement('canvas');
 
-    const width = video.videoWidth || 1280;
-    const height = video.videoHeight || 720;
+    let width = video.videoWidth || 1280;
+    let height = video.videoHeight || 720;
+    const maxDim = 1280;
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+    }
+
     canvas.width = width;
     canvas.height = height;
 
@@ -150,7 +161,7 @@ export const CameraViewfinder: React.FC<CameraViewfinderProps> = ({
     if (!ctx) return;
 
     ctx.drawImage(video, 0, 0, width, height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
     onCaptureImage(dataUrl, 'image/jpeg');
   }, [isLoading, onCaptureImage]);
 
@@ -398,7 +409,36 @@ export const CameraViewfinder: React.FC<CameraViewfinderProps> = ({
       </div>
 
       {/* Viewfinder Action Control Dock */}
-      {!frozenImage && (
+      {frozenImage ? (
+        <div className="w-full mt-4 flex items-center justify-between px-4 py-2.5 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl max-w-xl shadow-lg">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white transition px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700"
+          >
+            <ImageIcon className="w-4 h-4 text-cyan-400" />
+            <span>다른 사진 선택</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onRetake}
+            className="flex items-center gap-2 text-xs font-bold text-slate-950 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 transition shadow-lg shadow-cyan-500/20 active:scale-95"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>다시 카메라 촬영</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowSampleModal(true)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-cyan-300 transition px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700"
+          >
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <span>샘플</span>
+          </button>
+        </div>
+      ) : (
         <div className="w-full mt-4 flex items-center justify-between px-3 py-2 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl max-w-xl">
           {/* Gallery Picker */}
           <button

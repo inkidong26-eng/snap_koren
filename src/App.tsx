@@ -35,6 +35,8 @@ export default function App() {
   const [currentResult, setCurrentResult] = useState<TranslationData | null>(null);
   const [selectedSentenceId, setSelectedSentenceId] = useState<number | null>(null);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
+  const [showTextInputModal, setShowTextInputModal] = useState<boolean>(false);
+  const [customText, setCustomText] = useState<string>('');
 
   const [history, setHistory] = useState<TranslationHistoryItem[]>([]);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
@@ -93,7 +95,15 @@ export default function App() {
         }),
       });
 
-      const json = await response.json();
+      const responseText = await response.text();
+      let json: any;
+      try {
+        json = JSON.parse(responseText);
+      } catch (parseErr) {
+        throw new Error(
+          `서버 응답 오류 (${response.status}): ${responseText.slice(0, 120)}`
+        );
+      }
 
       if (!response.ok || !json.success) {
         throw new Error(json.error || '번역 요청이 실패했습니다.');
@@ -130,6 +140,37 @@ export default function App() {
     setSelectedSentenceId(null);
     setErrorMessage(null);
     setCurrentHistoryId(null);
+  };
+
+  const handleTextTranslate = async (text: string) => {
+    if (!text.trim()) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ textInput: text, tone }),
+      });
+      const responseText = await response.text();
+      let json: any;
+      try {
+        json = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error(`서버 응답 오류: ${responseText.slice(0, 100)}`);
+      }
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || '번역 요청이 실패했습니다.');
+      }
+      setCurrentResult(json.data);
+      setViewMode('scanner');
+      setShowTextInputModal(false);
+      setCustomText('');
+    } catch (err: any) {
+      setErrorMessage(err.message || '번역 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleToggleBookmark = (id?: string) => {
@@ -245,6 +286,16 @@ export default function App() {
                   {history.length}
                 </span>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowTextInputModal(true)}
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition"
+              title="외국어 문장 직접 입력 또는 붙여넣기 번역"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">직접 입력</span>
             </button>
           </div>
 
@@ -382,6 +433,57 @@ export default function App() {
             onDeleteHistory={handleDeleteHistory}
             onClearAll={handleClearAllHistory}
           />
+        )}
+
+        {/* Modal: Direct Text Translation */}
+        {showTextInputModal && (
+          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-lg w-full shadow-2xl">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-5 h-5 text-cyan-400" />
+                  <h3 className="text-base font-bold text-white">외국어 문장 직접 입력 번역</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTextInputModal(false)}
+                  className="text-slate-400 hover:text-white text-xs px-2 py-1"
+                >
+                  닫기
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-400 mb-3">
+                카메라 없이도 외국어(영어, 일본어, 중국어 등) 문장을 직접 입력하거나 복사-붙여넣기하여 즉시 한국어로 해석할 수 있습니다.
+              </p>
+
+              <textarea
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                placeholder="예: Deployment is completed successfully. / 麺のかたさをお選びください"
+                rows={4}
+                className="w-full p-3 rounded-2xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-400 resize-none mb-4"
+              />
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTextInputModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  disabled={!customText.trim() || isLoading}
+                  onClick={() => handleTextTranslate(customText)}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 hover:from-cyan-400 hover:to-emerald-300 transition shadow-lg shadow-cyan-500/20 disabled:opacity-50"
+                >
+                  {isLoading ? '해석 중...' : '한국어로 즉시 해석'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
 
