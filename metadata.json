@@ -1,0 +1,6 @@
+{
+  "name": "SnapKorean - 카메라 실시간 문장 번역기",
+  "description": "카메라로 외국어 문장을 비추면 실시간으로 자연스러운 한국어로 해석하고 핵심 어휘와 뉘앙스까지 분석해주는 번역 웹앱",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
